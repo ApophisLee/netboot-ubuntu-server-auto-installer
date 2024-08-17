@@ -9,7 +9,7 @@ iseq ${os_arch} arm64 && set os_arch arm64 ||
 
 set install_type sub
 set ubuntu_version noble
-
+echo ${ubuntu_version}_${os_arch}
 goto ${ubuntu_version}_${os_arch}
 
 :noble_amd64
@@ -23,7 +23,7 @@ set codename noble
 set version_number 24.04
 goto sub_boot
 
-
+:sub_boot
 imgfree
 iseq ${os_arch} amd64 && set ubuntu_iso_url http://releases.ubuntu.com/${codename}/ubuntu-${version_number}-live-server-${os_arch}.iso ||
 iseq ${os_arch} arm64 && set ubuntu_iso_url http://cdimage.ubuntu.com/releases/${version_number}/release/ubuntu-${version_number}-live-server-${os_arch}.iso ||
