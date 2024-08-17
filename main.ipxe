@@ -1,6 +1,8 @@
 #!ipxe
 dhcp
 
+set live_endpoint https://github.com/netbootxyz
+
 set os Ubuntu
 set os_arch ${buildarch}
 iseq ${os_arch} x86_64 && set os_arch amd64 ||
