@@ -1,0 +1,4 @@
+#!ipxe
+echo hello world!
+echo sleeping for 5 seconds ....
+sleep 5
