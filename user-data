@@ -2,6 +2,17 @@
 autoinstall:
   version: 1
   identity:
-    hostname: ubuntu-server
+    hostname: ubuntu
     password: "$6$exDY1mhS4KUYCE/2$zmn9ToZwTKLhCw.b4/b.ZRTIZM30JZ4QrOQ2aOXJ8yk96xpcCof0kxKwuX1kqLG/ygbJ1f8wxED22bTL4F46P0"
     username: ubuntu
+  source:
+    id: ubuntu-server-minimal
+    search_drivers: false
+  ssh:
+    allow-pw: false
+    authorized-keys:
+    - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVxj8+KXHucbaHxMZ02tjI+FQyMfvzBYR/HeH8XjIo+
+      ApophisLee@github/54089876 # ssh-import-id gh:ApophisLee'
+    install-server: true
+  updates: security
+  shutdown: poweroff
