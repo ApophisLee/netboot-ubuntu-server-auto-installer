@@ -20,7 +20,7 @@ set codename noble
 set version_number 24.04
 goto sub_boot
 :noble_arm64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04-7b71a472/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.1-dac09526/
 set codename noble
 set version_number 24.04
 goto sub_boot
