@@ -15,7 +15,7 @@ echo ${ubuntu_version}_${os_arch}
 goto ${ubuntu_version}_${os_arch}
 
 :noble_amd64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04-dac09526/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.1-dac09526/
 set codename noble
 set version_number 24.04
 goto sub_boot
