@@ -15,12 +15,12 @@ echo ${ubuntu_version}_${os_arch}
 goto ${ubuntu_version}_${os_arch}
 
 :noble_amd64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.2-dac09526/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.3-dac09526/
 set codename noble
 set version_number 24.04.3
 goto sub_boot
 :noble_arm64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.2-7b71a472/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.3-7b71a472/
 set codename noble
 set version_number 24.04.3
 goto sub_boot
