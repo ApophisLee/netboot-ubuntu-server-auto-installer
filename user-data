@@ -13,6 +13,7 @@ autoinstall:
     authorized-keys:
     - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHVxj8+KXHucbaHxMZ02tjI+FQyMfvzBYR/HeH8XjIo+
       ApophisLee@github/54089876 # ssh-import-id gh:ApophisLee'
+    - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEVcZWg6VYVwy51IVhAASADoJGFq35wq6n+Q9n3Kn02k'
     install-server: true
   updates: security
   shutdown: poweroff
