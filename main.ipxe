@@ -11,19 +11,19 @@ iseq ${os_arch} arm64 && set os_arch arm64 ||
 
 
 set install_type sub
-set ubuntu_version noble
+set ubuntu_version resolute
 echo ${ubuntu_version}_${os_arch}
 goto ${ubuntu_version}_${os_arch}
 
-:noble_amd64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.3-dac09526/
-set codename noble
-set version_number 24.04.3
+:resolute_amd64
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04-22041617/
+set codename resolute
+set version_number 26.04
 goto sub_boot
-:noble_arm64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/24.04.3-7b71a472/
-set codename noble
-set version_number 24.04.3
+:resolute_arm64
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04-c15b14d8/
+set codename resolute
+set version_number 26.04
 goto sub_boot
 
 :sub_boot
@@ -35,4 +35,3 @@ echo Loading Ubuntu Subiquity Network Installer...
 kernel ${kernel_url}vmlinuz root=/dev/ram0 ramdisk_size=3500000 autoinstall cloud-config-url=https://raw.githubusercontent.com/ApophisLee/netboot-ubuntu-server-auto-installer/main/user-data ${netboot_params} ${install_params} initrd=initrd.magic ${cmdline}
 initrd ${kernel_url}initrd
 boot
-
