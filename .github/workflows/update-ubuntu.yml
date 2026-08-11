@@ -1,0 +1,123 @@
+name: Update Ubuntu release
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-ubuntu-release
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Test updater
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Update to latest supported Ubuntu LTS
+        id: update
+        run: python3 scripts/update_ubuntu.py --github-output "$GITHUB_OUTPUT"
+
+      - name: Validate generated configuration
+        env:
+          CHANGED: ${{ steps.update.outputs.changed }}
+        run: |
+          set -euo pipefail
+          git diff --check
+          changed_files="$(git diff --name-only)"
+          if [[ "$CHANGED" == "true" && "$changed_files" != "main.ipxe" ]]; then
+            echo "Updater must change only main.ipxe" >&2
+            exit 1
+          elif [[ "$CHANGED" != "true" && -n "$changed_files" ]]; then
+            echo "Updater changed files without reporting a release update" >&2
+            exit 1
+          fi
+
+      - name: Report current release
+        if: steps.update.outputs.changed != 'true'
+        env:
+          UBUNTU_VERSION: ${{ steps.update.outputs.version }}
+        run: echo "Ubuntu ${UBUNTU_VERSION} is already current"
+
+      - name: Create update pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          AMD64_TAG: ${{ steps.update.outputs.amd64_tag }}
+          ARM64_TAG: ${{ steps.update.outputs.arm64_tag }}
+          UBUNTU_CODENAME: ${{ steps.update.outputs.codename }}
+          UBUNTU_VERSION: ${{ steps.update.outputs.version }}
+        run: |
+          set -euo pipefail
+          # This fixed branch is dedicated to the updater and reused across runs.
+          automation_branch="codex/auto-update-ubuntu"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$automation_branch"
+          git add -- main.ipxe
+          git commit -m "Update Ubuntu to ${UBUNTU_VERSION}"
+
+          remote_oid="$(git ls-remote --heads origin "refs/heads/${automation_branch}" | awk '{print $1}')"
+          if [[ -n "$remote_oid" ]]; then
+            git push \
+              --force-with-lease="refs/heads/${automation_branch}:${remote_oid}" \
+              origin "HEAD:refs/heads/${automation_branch}"
+          else
+            git push --set-upstream origin "HEAD:refs/heads/${automation_branch}"
+          fi
+
+          pr_body="$(mktemp)"
+          {
+            printf '## Summary\n\n'
+            printf -- '- Update `main.ipxe` to Ubuntu %s (%s).\n' "$UBUNTU_VERSION" "$UBUNTU_CODENAME"
+            printf -- '- Set the AMD64 netboot.xyz tag to `%s`.\n' "$AMD64_TAG"
+            printf -- '- Set the ARM64 netboot.xyz tag to `%s`.\n\n' "$ARM64_TAG"
+            printf '## Validation\n\n'
+            printf -- '- Updater unit tests\n'
+            printf -- '- Ubuntu ISO and netboot asset URL checks\n'
+            printf -- '- `git diff --check`\n'
+          } > "$pr_body"
+
+          existing_pr="$(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --base "$BASE_BRANCH" \
+              --head "$automation_branch" \
+              --state open \
+              --json number,isCrossRepository \
+              --jq 'map(select(.isCrossRepository == false))[0].number // empty'
+          )"
+          if [[ -n "$existing_pr" ]]; then
+            gh pr edit "$existing_pr" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Update Ubuntu to ${UBUNTU_VERSION}" \
+              --body-file "$pr_body"
+            gh pr view "$existing_pr" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json url \
+              --jq .url
+          else
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base "$BASE_BRANCH" \
+              --head "$automation_branch" \
+              --title "Update Ubuntu to ${UBUNTU_VERSION}" \
+              --body-file "$pr_body"
+          fi
