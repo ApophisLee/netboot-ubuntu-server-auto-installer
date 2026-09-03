@@ -17,3 +17,122 @@ autoinstall:
     install-server: true
   updates: security
   shutdown: poweroff
+  user-data:
+    write_files:
+    - path: /etc/docker/daemon.json
+      permissions: '0644'
+      content: |
+        {
+          "log-driver": "json-file",
+          "log-opts": {
+            "max-size": "10m",
+            "max-file": "3",
+            "labels": "production_status",
+            "env": "os,customer"
+          }
+        }
+    - path: /etc/docker/portainer-agent-stack.yml
+      permissions: '0644'
+      content: |
+        services:
+          agent:
+            image: portainer/agent:sts
+            volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /var/lib/docker/volumes:/var/lib/docker/volumes
+            networks:
+            - agent_network
+            deploy:
+              mode: global
+              placement:
+                constraints: [node.platform.os == linux]
+          portainer:
+            image: portainer/portainer-ce:sts
+            command: "-H tcp://tasks.agent:9001 --tlsskipverify"
+            ports:
+            - "9443:9443"
+            - "9000:9000"
+            - "8000:8000"
+            volumes:
+            - portainer_data:/data
+            networks:
+            - agent_network
+            deploy:
+              mode: replicated
+              replicas: 1
+              placement:
+                constraints: [node.role == manager]
+        networks:
+          agent_network:
+            driver: overlay
+            attachable: true
+        volumes:
+          portainer_data: {}
+    - path: /usr/local/sbin/post-install-setup.sh
+      permissions: '0755'
+      content: |
+        #!/bin/bash
+        # First-boot provisioning for the netboot autoinstall image. Idempotent:
+        # re-run by hand to recover a boot where the network was not yet up.
+        set -euo pipefail
+
+        export DEBIAN_FRONTEND=noninteractive
+        # apt-daily and unattended-upgrades race us for the dpkg lock on first boot.
+        apt_opts=(-o DPkg::Lock::Timeout=600)
+
+        log() { echo "post-install: $*"; }
+
+        # Grow the root LV into the space guided LVM leaves unallocated. Best
+        # effort: a volume group without free extents must not stop Docker.
+        if lvextend -l +80%FREE /dev/ubuntu-vg/ubuntu-lv &&
+          resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv; then
+          log "extended the root logical volume"
+        else
+          log "left the root logical volume alone (no free extents?)"
+        fi
+
+        # Install the latest docker-ce from Docker's own repository. The minimal
+        # server source ships without curl, so pull the prerequisites first.
+        apt-get "${apt_opts[@]}" update
+        apt-get "${apt_opts[@]}" install -y ca-certificates curl
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+          -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+        . /etc/os-release
+        cat > /etc/apt/sources.list.d/docker.list <<EOF
+        deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable
+        EOF
+        apt-get "${apt_opts[@]}" update
+        apt-get "${apt_opts[@]}" install -y docker-ce docker-ce-cli containerd.io \
+          docker-buildx-plugin docker-compose-plugin
+
+        # The deb enables the unit, but the socket is not ready the instant apt returns.
+        systemctl enable --now docker
+        for _ in $(seq 30); do
+          if docker info > /dev/null 2>&1; then
+            break
+          fi
+          sleep 2
+        done
+
+        # Enable a single-node swarm. An explicit advertise address keeps the
+        # init unambiguous on hosts that bring up more than one interface.
+        if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
+          advertise_addr="$(ip -4 route get 1.1.1.1 |
+            awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}')"
+          if [ -n "$advertise_addr" ]; then
+            docker swarm init --advertise-addr "$advertise_addr"
+          else
+            docker swarm init
+          fi
+          log "initialised a single-node swarm"
+        fi
+
+        # Deploy Portainer CE and its agent as a swarm stack.
+        docker stack deploy -c /etc/docker/portainer-agent-stack.yml portainer
+        # deploy returns once the services exist; the image pulls are still in
+        # flight, so record the state a failed pull would otherwise hide.
+        docker service ls
+    runcmd:
+    - [/usr/local/sbin/post-install-setup.sh]
