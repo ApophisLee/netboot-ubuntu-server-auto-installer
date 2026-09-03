@@ -16,14 +16,14 @@ echo ${ubuntu_version}_${os_arch}
 goto ${ubuntu_version}_${os_arch}
 
 :resolute_amd64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04-22041617/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04.1-c43af979/
 set codename resolute
-set version_number 26.04
+set version_number 26.04.1
 goto sub_boot
 :resolute_arm64
-set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04-c15b14d8/
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/26.04.1-d4149848/
 set codename resolute
-set version_number 26.04
+set version_number 26.04.1
 goto sub_boot
 
 :sub_boot
